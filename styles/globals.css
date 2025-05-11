@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import url("https://fonts.googleapis.com/css2?family=Dancing+Script&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap");
+@layer base {
+  :root {
+    --text-color: 0 0% 100%;
+
+    --background: 240, 6%, 7%;
+    --foreground: 0 0% 3.9%;
+
+    --background-dark: 240, 7%, 6%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+
+    --primary: 12, 100%, 55%;
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 220, 6%, 10%;
+    --secondary-foreground: 0 0% 3.9%;
+
+    --success: 118, 95%, 85%;
+
+    --hover: 210, 6%, 13%;
+    --hover-foreground: 0 0% 9%;
+
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 65.1%;
+
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220, 4%, 15%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+
+    --radius: 0.5rem;
+  }
+}
+
+body {
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--base-black, #17181a);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--stroke-grey, #232426);
+    border-radius: 4px;
+  }
+}
