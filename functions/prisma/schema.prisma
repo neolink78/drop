@@ -3,6 +3,81 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+model Product {
+  id                String   @id @default(cuid())
+  aliexpressUrl     String
+  aliexpressId      String   @unique
+  title             String
+  description       String
+  originalPrice     Decimal
+  markupPrice       Decimal
+  images            Json
+  specifications    Json
+  variants          Json
+  skus              Json?
+  shippingInfo      Json?
+  reviews           Json?
+  sellerInfo        Json
+  lastScraped       DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  orders            Order[]
+}
+
+model Order {
+  id                String   @id @default(cuid())
+  stripePaymentId   String   @unique
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id])
+  customerEmail     String
+  customerName      String
+  customerPhone     String?
+  shippingAddress   Json
+  quantity          Int
+  skuId             String?
+  skuAttr           String?
+  totalPaid         Decimal
+  aliexpressOrderId String?
+  aliexpressStatus  String?
+  fulfillmentError  String?
+  orderStatus       OrderStatus @default(PENDING)
+  trackingNumber    String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  ORDERING
+  ORDERED
+  SHIPPED
+  DELIVERED
+  FAILED
+  REFUNDED
+}
+
+model AliExpressToken {
+  id                String   @id @default(cuid())
+  accessToken       String
+  refreshToken      String?
+  accountId         String?
+  expiresAt         DateTime
+  refreshExpiresAt  DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Admin {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  password          String
+  name              String
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }

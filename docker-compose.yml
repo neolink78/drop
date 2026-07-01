@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: dropshipping
+      POSTGRES_PASSWORD: dropshipping_password
+      POSTGRES_DB: dropshipping_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dropshipping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./functions
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: "postgresql://dropshipping:dropshipping_password@postgres:5432/dropshipping_db"
+      NODE_ENV: production
+    env_file:
+      - ./functions/.env
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./functions:/app
+      - /app/node_modules
+      - /app/dist
+    command: >
+      sh -c "npx prisma migrate deploy &&
+             npm start"
+
+volumes:
+  postgres_data:
