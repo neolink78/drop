@@ -1,10 +1,24 @@
 import Stripe from 'stripe';
 import { Product, Order, Prisma } from '@prisma/client';
 
-// Initialize Stripe with the secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-01-28.clover',
-});
+// Lazily initialize Stripe so the server can boot even when the key is not yet
+// configured (e.g. first deploy). The client is created on first use; if the
+// key is missing, only Stripe-dependent operations fail, not the whole app.
+let stripeInstance: Stripe | null = null;
+
+export const isStripeConfigured = (): boolean => Boolean(process.env.STRIPE_SECRET_KEY);
+
+const getStripe = (): Stripe => {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('Stripe is not configured (missing STRIPE_SECRET_KEY)');
+  }
+  if (!stripeInstance) {
+    stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2026-01-28.clover',
+    });
+  }
+  return stripeInstance;
+};
 
 export interface CheckoutSessionData {
   productId: string;
@@ -38,7 +52,7 @@ export interface WebhookEvent {
  */
 export const createCheckoutSession = async (data: CheckoutSessionData): Promise<Stripe.Checkout.Session> => {
   try {
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
@@ -85,7 +99,7 @@ export const createCheckoutSession = async (data: CheckoutSessionData): Promise<
  */
 export const retrieveCheckoutSession = async (sessionId: string): Promise<Stripe.Checkout.Session> => {
   try {
-    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+    const session = await getStripe().checkout.sessions.retrieve(sessionId, {
       expand: ['line_items', 'customer', 'payment_intent'],
     });
     return session;
@@ -101,7 +115,7 @@ export const retrieveCheckoutSession = async (sessionId: string): Promise<Stripe
 export const constructWebhookEvent = (payload: string | Buffer, signature: string): Stripe.Event => {
   try {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-    const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
+    const event = getStripe().webhooks.constructEvent(payload, signature, webhookSecret);
     return event;
   } catch (error) {
     console.error('Error verifying webhook signature:', error);
@@ -136,7 +150,7 @@ export const handlePaymentSuccess = async (session: Stripe.Checkout.Session): Pr
  */
 export const createRefund = async (paymentIntentId: string, amount?: number): Promise<Stripe.Refund> => {
   try {
-    const refund = await stripe.refunds.create({
+    const refund = await getStripe().refunds.create({
       payment_intent: paymentIntentId,
       amount: amount ? Math.round(amount * 100) : undefined, // Convert to cents if amount provided
     });
@@ -180,7 +194,7 @@ export const createPaymentLink = async (data: {
 }): Promise<Stripe.PaymentLink> => {
   try {
     // First create a product
-    const product = await stripe.products.create({
+    const product = await getStripe().products.create({
       name: data.productTitle,
       images: data.images?.slice(0, 8),
       metadata: {
@@ -189,14 +203,14 @@ export const createPaymentLink = async (data: {
     });
 
     // Then create a price
-    const price = await stripe.prices.create({
+    const price = await getStripe().prices.create({
       product: product.id,
       unit_amount: Math.round(data.price * 100), // Convert to cents
       currency: 'eur',
     });
 
     // Finally create the payment link
-    const paymentLink = await stripe.paymentLinks.create({
+    const paymentLink = await getStripe().paymentLinks.create({
       line_items: [
         {
           price: price.id,
