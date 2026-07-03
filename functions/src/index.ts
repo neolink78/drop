@@ -4,11 +4,13 @@ import cors from "cors"
 import { createDefaultAdmin } from './services/Auth.service';
 
 const app = express()
-const port = 4000
+const port = parseInt(process.env.PORT || '4000', 10)
 
+// Restrict CORS to the configured frontend origin in production; allow all in dev.
+const corsOrigin = process.env.CORS_ORIGIN || process.env.FRONTEND_URL || '*'
 
 app.use(express.json())
-app.use(cors())
+app.use(cors({ origin: corsOrigin }))
 app.use(router)
 
 
