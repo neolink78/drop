@@ -194,9 +194,21 @@ const requestToken = async (
  */
 const persistToken = async (token: TokenResponse): Promise<void> => {
   const now = Date.now();
-  // Access token lifetime (seconds). Dropshipping apps ~ 1 month.
-  const expiresInMs = (token.expires_in || 30 * 24 * 60 * 60) * 1000;
-  const refreshExpiresInMs = (token.refresh_token_valid_time || 0) * 1000;
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+  // AliExpress (SG gateway) returns these lifetimes in MILLISECONDS already.
+  // Guard against absurd values (some responses omit them or use other units).
+  const normalizeMs = (raw: number | undefined, fallback: number): number => {
+    if (!raw || raw <= 0) return fallback;
+    // If the value looks like seconds (too small to be a plausible ms lifetime),
+    // convert it; otherwise treat it as milliseconds. Cap to ~1 year to be safe.
+    const ms = raw < 1_000_000 ? raw * 1000 : raw;
+    const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+    return Math.min(ms, ONE_YEAR_MS);
+  };
+
+  const expiresInMs = normalizeMs(token.expires_in, THIRTY_DAYS_MS);
+  const refreshExpiresInMs = normalizeMs(token.refresh_token_valid_time, 0);
 
   await prisma.aliExpressToken.upsert({
     where: { id: 'singleton' },
