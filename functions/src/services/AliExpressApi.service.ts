@@ -30,16 +30,12 @@ const CALLBACK_URL =
 export const isAliExpressConfigured = (): boolean => Boolean(APP_KEY && APP_SECRET);
 
 /**
- * Format a Date to the timestamp format AliExpress expects (GMT+8).
+ * Timestamp for the modern api-sg.aliexpress.com gateway: epoch milliseconds
+ * (as a string). The older /router/rest gateway used a "yyyy-MM-dd HH:mm:ss"
+ * GMT+8 string, but the System Interface (SG) endpoints expect milliseconds,
+ * otherwise AliExpress returns "IllegalTimestamp".
  */
-const formatTimestamp = (date: Date = new Date()): string => {
-  const gmt8 = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-  const pad = (n: number) => n.toString().padStart(2, '0');
-  return (
-    `${gmt8.getUTCFullYear()}-${pad(gmt8.getUTCMonth() + 1)}-${pad(gmt8.getUTCDate())} ` +
-    `${pad(gmt8.getUTCHours())}:${pad(gmt8.getUTCMinutes())}:${pad(gmt8.getUTCSeconds())}`
-  );
-};
+const formatTimestamp = (date: Date = new Date()): string => String(date.getTime());
 
 /**
  * Sign the request parameters using the TOP HMAC-SHA256 algorithm:
