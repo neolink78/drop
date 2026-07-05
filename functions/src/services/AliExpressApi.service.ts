@@ -356,9 +356,11 @@ const mapProductResponse = (
   const skuArray = Array.isArray(skuInfo) ? skuInfo : skuInfo ? [skuInfo] : [];
 
   const skus: AliExpressSku[] = skuArray.map((sku: any) => {
+    // `ae_sku_property_dtos` is usually a direct array; older shapes nest it
+    // under `ae_sku_property_d_t_o`. Handle both.
+    const rawProp = sku?.ae_sku_property_dtos;
     const propList =
-      sku?.ae_sku_property_dtos?.ae_sku_property_d_t_o ||
-      sku?.ae_sku_property_dtos?.sku_property_dto ||
+      (Array.isArray(rawProp) ? rawProp : rawProp?.ae_sku_property_d_t_o) ||
       sku?.ae_sku_property_d_t_o ||
       sku?.sku_property_list ||
       sku?.sku_properties ||
@@ -367,15 +369,13 @@ const mapProductResponse = (
     const propImage = propArray.find((p: any) => p?.sku_image || p?.skuImage)?.sku_image;
     const humanProps = propArray
       .map((p: any) => {
-        const name = p?.sku_property_name || p?.skuPropertyName || '';
         const value =
-          p?.property_value_definition_name ||
-          p?.propertyValueDefinitionName ||
           p?.sku_property_value ||
           p?.skuPropertyValue ||
-          p?.property_value_id_long ||
+          p?.property_value_definition_name ||
+          p?.propertyValueDefinitionName ||
           '';
-        return name ? `${name}: ${value}` : String(value);
+        return String(value);
       })
       .filter(Boolean)
       .join(' / ');
@@ -419,6 +419,36 @@ const mapProductResponse = (
     const key = p?.attr_name || p?.attrName || p?.attr_name_id;
     const value = p?.attr_value || p?.attrValue || p?.attr_value_id;
     if (key && value) specs[String(key)] = String(value);
+  }
+
+  // If the API returns no structured properties (common - specs are often only
+  // in the HTML description), derive a few useful specs from other fields so
+  // the "Caractéristiques" section is not empty.
+  const pkg = resp?.package_info_dto || {};
+  if (pkg.gross_weight) specs['Poids'] = `${pkg.gross_weight} kg`;
+  if (pkg.package_length && pkg.package_width && pkg.package_height) {
+    specs['Dimensions (colis)'] = `${pkg.package_length} × ${pkg.package_width} × ${pkg.package_height} cm`;
+  }
+  const deliveryDays = resp?.logistics_info_dto?.delivery_time;
+  if (deliveryDays) specs['Délai de préparation'] = `${deliveryDays} jours`;
+
+  // Aggregate distinct SKU property values (e.g. "Couleur: noir, BLANC").
+  const skuPropAgg: Record<string, Set<string>> = {};
+  for (const sku of skuArray) {
+    const rawProp = (sku as any)?.ae_sku_property_dtos;
+    const list = Array.isArray(rawProp) ? rawProp : rawProp?.ae_sku_property_d_t_o || [];
+    const arr = Array.isArray(list) ? list : list ? [list] : [];
+    for (const p of arr) {
+      const name = p?.sku_property_name;
+      const value = p?.sku_property_value || p?.property_value_definition_name;
+      if (name && value) {
+        if (!skuPropAgg[name]) skuPropAgg[name] = new Set();
+        skuPropAgg[name].add(String(value));
+      }
+    }
+  }
+  for (const [name, values] of Object.entries(skuPropAgg)) {
+    if (!specs[name]) specs[name] = Array.from(values).join(', ');
   }
 
   const variants: Variant[] = skus.map((sku) => ({
