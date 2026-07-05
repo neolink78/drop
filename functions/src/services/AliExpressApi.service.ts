@@ -641,13 +641,14 @@ export const getTracking = async (aliexpressOrderId: string): Promise<TrackingRe
  * id to drill down to cities.
  */
 export const getAddressTree = async (
-  parentPathId: string,
+  countryCode: string,
   language: string = 'en_US'
 ): Promise<any> => {
   const result = await callApi(
     'aliexpress.ds.address.get',
     {
-      parent_path_id: parentPathId,
+      country_code: countryCode,
+      countryCode,
       language,
     },
     { requiresAuth: true }
