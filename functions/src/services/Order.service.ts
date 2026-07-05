@@ -1,7 +1,7 @@
 import { PrismaClient, Order, OrderStatus, Prisma } from '@prisma/client';
 import * as StripeService from './Stripe.service';
 import * as AliExpress from './AliExpressApi.service';
-import { regionFromFrenchPostalCode } from './frenchRegions';
+import { departmentFromFrenchPostalCode } from './frenchRegions';
 
 const prisma = new PrismaClient();
 
@@ -218,12 +218,13 @@ export const fulfillOrderViaApi = async (orderId: string): Promise<AliExpressOrd
     // B_DROPSHIPPER_DELIVERY_ADDRESS_VALIDATE_FAIL / "Please enter Numbers only").
     const { phoneCountry, mobileNo } = parsePhone(order.customerPhone || '');
 
-    // AliExpress requires a valid State/Province. Stripe does not collect a
-    // region for French addresses, so derive it from the postal code. Fall
-    // back to the collected state, then the city, so the field is never empty.
+    // AliExpress requires a valid State/Province matching its address book.
+    // For France the "province" level is the DEPARTMENT (e.g. 78200 ->
+    // "Yvelines"). Stripe does not collect it, so derive it from the postal
+    // code. Fall back to the collected state, then the city.
     let province = shippingAddress.state || '';
     if (!province && (shippingAddress.country || '').toUpperCase() === 'FR') {
-      province = regionFromFrenchPostalCode(shippingAddress.postalCode || '');
+      province = departmentFromFrenchPostalCode(shippingAddress.postalCode || '');
     }
     if (!province) {
       province = shippingAddress.city || '';
