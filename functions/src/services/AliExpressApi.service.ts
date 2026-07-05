@@ -317,6 +317,10 @@ export const getProduct = async (
     result?.result ||
     result;
 
+  if (process.env.ALIEXPRESS_DEBUG === 'true') {
+    console.log('[AliExpress] product.get raw response:', JSON.stringify(resp).slice(0, 4000));
+  }
+
   return mapProductResponse(productId, resp);
 };
 
@@ -343,7 +347,10 @@ const mapProductResponse = (
   const storeInfo = resp?.ae_store_info || resp?.store_info || {};
   const propsRaw =
     resp?.ae_item_properties?.ae_item_property ||
+    resp?.ae_item_properties?.item_property ||
+    resp?.ae_item_property_s?.ae_item_property ||
     resp?.item_properties ||
+    resp?.properties ||
     [];
 
   const skuArray = Array.isArray(skuInfo) ? skuInfo : skuInfo ? [skuInfo] : [];
@@ -351,13 +358,27 @@ const mapProductResponse = (
   const skus: AliExpressSku[] = skuArray.map((sku: any) => {
     const propList =
       sku?.ae_sku_property_dtos?.ae_sku_property_d_t_o ||
+      sku?.ae_sku_property_dtos?.sku_property_dto ||
+      sku?.ae_sku_property_d_t_o ||
       sku?.sku_property_list ||
+      sku?.sku_properties ||
       [];
     const propArray = Array.isArray(propList) ? propList : propList ? [propList] : [];
-    const propImage = propArray.find((p: any) => p?.sku_image)?.sku_image;
+    const propImage = propArray.find((p: any) => p?.sku_image || p?.skuImage)?.sku_image;
     const humanProps = propArray
-      .map((p: any) => `${p?.sku_property_name}: ${p?.property_value_definition_name || p?.sku_property_value}`)
-      .join(', ');
+      .map((p: any) => {
+        const name = p?.sku_property_name || p?.skuPropertyName || '';
+        const value =
+          p?.property_value_definition_name ||
+          p?.propertyValueDefinitionName ||
+          p?.sku_property_value ||
+          p?.skuPropertyValue ||
+          p?.property_value_id_long ||
+          '';
+        return name ? `${name}: ${value}` : String(value);
+      })
+      .filter(Boolean)
+      .join(' / ');
 
     return {
       skuId: String(sku?.sku_id ?? ''),
@@ -395,8 +416,8 @@ const mapProductResponse = (
   const propsArray = Array.isArray(propsRaw) ? propsRaw : propsRaw ? [propsRaw] : [];
   const specs: Record<string, string> = {};
   for (const p of propsArray) {
-    const key = p?.attr_name || p?.attr_name_id;
-    const value = p?.attr_value;
+    const key = p?.attr_name || p?.attrName || p?.attr_name_id;
+    const value = p?.attr_value || p?.attrValue || p?.attr_value_id;
     if (key && value) specs[String(key)] = String(value);
   }
 
