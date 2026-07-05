@@ -30,6 +30,37 @@ export interface AliExpressOrderDetails {
 }
 
 /**
+ * Split a phone number into a numeric country code and a digits-only local
+ * number, as required by the AliExpress delivery address validation.
+ * Examples: "+33610138310" -> { phoneCountry: "33", mobileNo: "610138310" }
+ *           "0610138310"   -> { phoneCountry: "33", mobileNo: "610138310" }
+ */
+const parsePhone = (raw: string): { phoneCountry: string; mobileNo: string } => {
+  const trimmed = (raw || '').trim();
+
+  // Known dialing codes we may encounter (longest first for correct matching).
+  const knownCodes = ['351', '353', '352', '420', '33', '32', '34', '39', '44', '49', '31', '43', '41', '1'];
+
+  const hasInternationalPrefix = trimmed.startsWith('+') || trimmed.startsWith('00');
+  // All digits, dropping a leading "00" international prefix if present.
+  const digits = trimmed.replace(/^00/, '').replace(/\D/g, '');
+
+  if (hasInternationalPrefix) {
+    for (const code of knownCodes) {
+      if (digits.startsWith(code)) {
+        const local = digits.slice(code.length).replace(/^0+/, '');
+        return { phoneCountry: code, mobileNo: local };
+      }
+    }
+    // Fallback: assume the first 2 digits are the country code.
+    return { phoneCountry: digits.slice(0, 2), mobileNo: digits.slice(2) };
+  }
+
+  // No country prefix: assume France, strip a leading trunk 0.
+  return { phoneCountry: '33', mobileNo: digits.replace(/^0+/, '') };
+};
+
+/**
  * Create a new order from Stripe webhook
  */
 export const createOrder = async (input: CreateOrderInput): Promise<Order> => {
@@ -181,16 +212,22 @@ export const fulfillOrderViaApi = async (orderId: string): Promise<AliExpressOrd
       throw new Error('AliExpress API is not configured on the server.');
     }
 
+    // AliExpress requires the phone split into a numeric country code and a
+    // digits-only local number (it rejects "+" and spaces with
+    // B_DROPSHIPPER_DELIVERY_ADDRESS_VALIDATE_FAIL / "Please enter Numbers only").
+    const { phoneCountry, mobileNo } = parsePhone(order.customerPhone || '');
+
     const address: AliExpress.AliExpressAddress = {
       contactPerson: order.customerName,
       address: shippingAddress.line1 || '',
       address2: shippingAddress.line2 || '',
       city: shippingAddress.city || '',
-      province: shippingAddress.state || '',
+      // AliExpress requires a non-empty province; fall back to the city.
+      province: shippingAddress.state || shippingAddress.city || '',
       zip: shippingAddress.postalCode || '',
       country: shippingAddress.country || '',
-      mobileNo: order.customerPhone || '',
-      phoneCountry: '',
+      mobileNo,
+      phoneCountry,
     };
 
     const placed = await AliExpress.createOrder({
