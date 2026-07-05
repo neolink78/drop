@@ -554,11 +554,19 @@ export const createOrder = async (params: {
     product_items: productItems,
   });
 
+  if (process.env.ALIEXPRESS_DEBUG === 'true') {
+    console.log('[AliExpress] order.create request:', paramPlaceOrderRequest);
+  }
+
   const result = await callApi(
     'aliexpress.ds.order.create',
     { param_place_order_request4_open_api_d_t_o: paramPlaceOrderRequest },
     { requiresAuth: true }
   );
+
+  if (process.env.ALIEXPRESS_DEBUG === 'true') {
+    console.log('[AliExpress] order.create raw response:', JSON.stringify(result).slice(0, 1000));
+  }
 
   const resp =
     result?.aliexpress_ds_order_create_response?.result ||
