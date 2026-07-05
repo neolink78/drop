@@ -55,6 +55,25 @@ export const callback = async (req: Request, res: Response): Promise<void> => {
 };
 
 /**
+ * Debug helper: return the AliExpress address tree for a given parent
+ * (country code like "FR", or a province id). Used to discover the exact
+ * province labels/ids AliExpress expects for order validation.
+ */
+export const addressTree = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parent = (req.query.parent as string) || 'FR';
+    const language = (req.query.language as string) || 'en_US';
+    const tree = await AliExpress.getAddressTree(parent, language);
+    res.json({ success: true, data: tree });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch address tree',
+    });
+  }
+};
+
+/**
  * Report whether the AliExpress account is connected (admin dashboard badge).
  */
 export const status = async (_req: Request, res: Response): Promise<void> => {

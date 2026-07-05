@@ -627,3 +627,36 @@ export const getTracking = async (aliexpressOrderId: string): Promise<TrackingRe
     raw: resp,
   };
 };
+
+/* ------------------------------------------------------------------ *
+ * Address book (provinces / cities) resolution
+ * ------------------------------------------------------------------ */
+
+/**
+ * Fetch the AliExpress address tree for a given parent (country/province).
+ * Used to resolve the exact province label/code AliExpress expects, since its
+ * order validation rejects arbitrary region names.
+ *
+ * `parentPathId` = country code (e.g. "FR") for the top level, or a province
+ * id to drill down to cities.
+ */
+export const getAddressTree = async (
+  parentPathId: string,
+  language: string = 'en_US'
+): Promise<any> => {
+  const result = await callApi(
+    'aliexpress.ds.address.get',
+    {
+      parent_path_id: parentPathId,
+      language,
+    },
+    { requiresAuth: true }
+  );
+
+  return (
+    result?.aliexpress_ds_address_get_response?.result ||
+    result?.result ||
+    result
+  );
+};
+
