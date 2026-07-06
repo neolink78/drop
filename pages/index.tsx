@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { usePublicProducts } from '@/lib/hooks/useSWR';
 import { checkoutApi } from '@/services/api.service';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface Sku {
     skuId: string;
@@ -14,7 +14,7 @@ interface Sku {
     image?: string;
 }
 
-const STORE_NAME = 'Nova';
+const STORE_NAME = 'Nuvo';
 
 export default function Home() {
     const { products, isLoading } = usePublicProducts(1, 1);
@@ -34,6 +34,14 @@ export default function Home() {
         () => skus.find((s) => s.skuId === selectedSkuId) || null,
         [skus, selectedSkuId]
     );
+
+    // Pre-select a default variant: the first one in stock, else the first.
+    useEffect(() => {
+        if (skus.length > 0 && !selectedSkuId) {
+            const firstInStock = skus.find((s) => s.stock > 0) || skus[0];
+            setSelectedSkuId(firstInStock.skuId);
+        }
+    }, [skus, selectedSkuId]);
 
     const images: string[] = product?.images || [];
 
@@ -203,7 +211,13 @@ export default function Home() {
                                         <button
                                             key={sku.skuId}
                                             type="button"
-                                            onClick={() => setSelectedSkuId(sku.skuId)}
+                                            onClick={() => {
+                                                setSelectedSkuId(sku.skuId);
+                                                if (sku.image) {
+                                                    const idx = images.indexOf(sku.image);
+                                                    if (idx >= 0) setActiveImage(idx);
+                                                }
+                                            }}
                                             disabled={sku.stock <= 0}
                                             className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
                                                 selectedSkuId === sku.skuId
