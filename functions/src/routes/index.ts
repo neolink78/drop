@@ -2,6 +2,7 @@ import { Router } from "express";
 import ApiRouter from "./Api.route";
 import productRouter from './Product.route';
 import publicProductRouter from './PublicProduct.route';
+import publicOrderRouter from './PublicOrder.route';
 import checkoutRouter from './Checkout.route';
 import webhookRouter from './Webhook.route';
 import orderRouter from './Order.route';
@@ -17,6 +18,7 @@ router.use('/api/auth', authRouter)
 router.use('/webhook', webhookRouter)
 router.use('/api/checkout', checkoutRouter) // Checkout is public for customers
 router.use('/api/public/products', publicProductRouter) // Public product endpoints
+router.use('/api/public/orders', publicOrderRouter) // Public order tracking
 router.use('/api/admin/aliexpress', aliexpressRouter) // AliExpress OAuth (auth handled per-route)
 
 // Protected admin routes

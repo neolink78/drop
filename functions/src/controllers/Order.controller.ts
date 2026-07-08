@@ -30,6 +30,37 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
+/**
+ * Public order status lookup for the customer "track my order" page.
+ * Requires order id + matching email; no admin auth.
+ */
+export const getPublicOrderStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderId = (req.query.order as string) || '';
+    const email = (req.query.email as string) || '';
+
+    if (!orderId || !email) {
+      res.status(400).json({ success: false, error: 'Numéro de commande et email requis' });
+      return;
+    }
+
+    const status = await OrderService.getPublicOrderStatus(orderId, email);
+
+    if (!status) {
+      res.status(404).json({
+        success: false,
+        error: 'Aucune commande trouvée pour ce numéro et cet email.',
+      });
+      return;
+    }
+
+    res.json({ success: true, data: status });
+  } catch (error) {
+    console.error('Error fetching public order status:', error);
+    res.status(500).json({ success: false, error: 'Erreur lors de la récupération de la commande' });
+  }
+};
+
 export const getAllOrders = async (req: Request, res: Response): Promise<void> => {
   try {
     const { 

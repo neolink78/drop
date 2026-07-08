@@ -1,6 +1,7 @@
 import { PrismaClient, Order, OrderStatus, Prisma } from '@prisma/client';
 import * as StripeService from './Stripe.service';
 import * as AliExpress from './AliExpressApi.service';
+import * as EmailService from './Email.service';
 import { departmentFromFrenchPostalCode } from './frenchRegions';
 
 const prisma = new PrismaClient();
@@ -283,6 +284,48 @@ export const fulfillOrderViaApi = async (orderId: string): Promise<AliExpressOrd
  */
 export const fulfillOrderOnAliExpress = fulfillOrderViaApi;
 
+export interface PublicOrderStatus {
+  orderId: string;
+  status: OrderStatus;
+  productTitle: string;
+  quantity: number;
+  totalPaid: string;
+  trackingNumber: string | null;
+  createdAt: Date;
+}
+
+/**
+ * Public order lookup for the "track my order" page. Requires both the order
+ * id and the matching email (case-insensitive) so a customer can only see
+ * their own order. Returns null if not found or the email doesn't match.
+ */
+export const getPublicOrderStatus = async (
+  orderId: string,
+  email: string
+): Promise<PublicOrderStatus | null> => {
+  if (!orderId || !email) return null;
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId.trim() },
+    include: { product: true },
+  });
+
+  if (!order) return null;
+  if (order.customerEmail.trim().toLowerCase() !== email.trim().toLowerCase()) {
+    return null;
+  }
+
+  return {
+    orderId: order.id,
+    status: order.orderStatus,
+    productTitle: (order as any).product?.title || 'Produit',
+    quantity: order.quantity,
+    totalPaid: order.totalPaid.toString(),
+    trackingNumber: order.trackingNumber,
+    createdAt: order.createdAt,
+  };
+};
+
 /**
  * Refresh tracking info for an order from AliExpress and update its status.
  */
@@ -298,6 +341,7 @@ export const refreshOrderTracking = async (orderId: string): Promise<Order> => {
   const tracking = await AliExpress.getTracking(order.aliexpressOrderId);
 
   const data: Prisma.OrderUpdateInput = {};
+  const isNewTracking = Boolean(tracking.trackingNumber) && !order.trackingNumber;
   if (tracking.trackingNumber) {
     data.trackingNumber = tracking.trackingNumber;
     // A tracking number means the parcel has shipped.
@@ -309,11 +353,27 @@ export const refreshOrderTracking = async (orderId: string): Promise<Order> => {
     data.aliexpressStatus = tracking.status;
   }
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: orderId },
     data,
     include: { product: true },
   });
+
+  // Notify the customer the first time a tracking number appears.
+  if (isNewTracking) {
+    const prod = (updated as any).product;
+    EmailService.sendShippingNotification({
+      orderId: updated.id,
+      customerName: updated.customerName,
+      customerEmail: updated.customerEmail,
+      productTitle: prod?.title || 'Votre produit',
+      quantity: updated.quantity,
+      totalPaid: updated.totalPaid.toString(),
+      trackingNumber: updated.trackingNumber,
+    }).catch((err) => console.error('Shipping email failed:', err));
+  }
+
+  return updated;
 };
 
 /**

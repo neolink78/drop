@@ -367,10 +367,21 @@ export default function Home() {
 
             {/* Footer */}
             <footer className="bg-gray-950 text-gray-400">
-                <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <span className="text-white font-semibold">{STORE_NAME}</span>
-                    <p className="text-sm">&copy; {new Date().getFullYear()} {STORE_NAME}. Tous droits réservés.</p>
-                    <Link href="/admin" className="text-sm hover:text-white">Administration</Link>
+                <div className="max-w-6xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <span className="text-white font-semibold">{STORE_NAME}</span>
+                        <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
+                            <Link href="/suivi" className="hover:text-white">Suivre ma commande</Link>
+                            <Link href="/contact" className="hover:text-white">Contact</Link>
+                            <Link href="/retours" className="hover:text-white">Retours</Link>
+                            <Link href="/cgv" className="hover:text-white">CGV</Link>
+                            <Link href="/mentions-legales" className="hover:text-white">Mentions légales</Link>
+                            <Link href="/confidentialite" className="hover:text-white">Confidentialité</Link>
+                        </nav>
+                    </div>
+                    <p className="mt-6 text-center text-xs text-gray-500">
+                        &copy; {new Date().getFullYear()} {STORE_NAME}. Tous droits réservés.
+                    </p>
                 </div>
             </footer>
         </div>

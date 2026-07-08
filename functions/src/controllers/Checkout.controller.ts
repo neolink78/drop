@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import * as StripeService from '../services/Stripe.service';
 import * as ProductService from '../services/Product.service';
 import * as OrderService from '../services/Order.service';
+import * as EmailService from '../services/Email.service';
 
 export const createCheckoutSession = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -92,6 +93,17 @@ export const handleStripeWebhook = async (req: Request, res: Response): Promise<
           });
           
           console.log('Order created for payment:', paymentData.paymentIntentId);
+          
+          // Send the order confirmation email (non-blocking, never throws).
+          const orderProduct = (order as any).product;
+          EmailService.sendOrderConfirmation({
+            orderId: order.id,
+            customerName: order.customerName,
+            customerEmail: order.customerEmail,
+            productTitle: orderProduct?.title || 'Votre produit',
+            quantity: order.quantity,
+            totalPaid: order.totalPaid.toString(),
+          }).catch((err) => console.error('Confirmation email failed:', err));
           
           // Automatically place the order on AliExpress. Runs in the background
           // so we can acknowledge the webhook quickly; failures are recorded on

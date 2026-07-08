@@ -31,6 +31,14 @@ export const publicProductApi = {
   },
 };
 
+// Public order tracking (for customers)
+export const publicOrderApi = {
+  getStatus: async (order: string, email: string) => {
+    const response = await api.get('/api/public/orders/status', { params: { order, email } });
+    return response.data;
+  },
+};
+
 // Admin Product APIs
 export const productApi = {
   scrape: async (url: string) => {
